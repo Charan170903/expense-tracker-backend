@@ -1,108 +1,111 @@
-# Expense Tracker Backend
+# CHECK Backend API
 
-A clean, production-ready Express.js backend for the Expense Tracker application.
+Express.js REST API for the CHECK expense tracking application.
 
-## 🚀 Tech Stack
+## Tech Stack
 
-- **Node.js** - Runtime environment
-- **Express.js** - Web framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB ODM
-- **dotenv** - Environment variable management
-- **cors** - Cross-Origin Resource Sharing
+- **Runtime**: Node.js 20.x
+- **Framework**: Express.js 5.2.1
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: JWT + bcryptjs
+- **Validation**: Express Validator
+- **Security**: CORS, Helmet (planned)
 
-## 📁 Folder Structure
+## Installation
+
+```bash
+npm install
+cp .env.example .env
+# Edit .env with your configuration
+npm run dev
+```
+
+## Scripts
+
+```bash
+npm start       # Production server
+npm run dev     # Development with nodemon
+```
+
+## Environment Variables
+
+See `.env.example` for required variables:
+
+- `MONGODB_URI` - MongoDB connection string
+- `JWT_SECRET` - Secret key for JWT signing
+- `PORT` - Server port (default: 5000)
+- `NODE_ENV` - Environment (development/production)
+- `ALLOWED_ORIGINS` - Comma-separated CORS origins
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/me` - Get current user (protected)
+
+### Transactions
+- `GET /api/transactions` - Get all user transactions
+- `POST /api/transactions` - Create transaction
+- `PUT /api/transactions/:id` - Update transaction
+- `DELETE /api/transactions/:id` - Delete transaction
+
+### Insights
+- `GET /api/insights/monthly-summary` - Monthly statistics
+- `GET /api/insights/subscriptions` - Detect recurring expenses
+- `GET /api/insights/year-overview` - Yearly spending overview
+
+### Health
+- `GET /api/health` - Server health check
+
+## Project Structure
 
 ```
 backend/
 ├── config/
-│   └── db.js              # MongoDB connection configuration
-├── controllers/           # Business logic (future)
-├── models/                # Mongoose models (future)
+│   └── db.js              # MongoDB connection
+├── controllers/
+│   ├── authController.js  # Authentication logic
+│   ├── transactionController.js
+│   ├── insightController.js
+│   └── README.md
+├── middleware/
+│   └── auth.js            # JWT verification
+├── models/
+│   ├── User.js            # User schema
+│   ├── Transaction.js     # Transaction schema
+│   └── README.md
 ├── routes/
-│   └── health.js          # Health check endpoint
-├── .env                   # Environment variables
-├── .gitignore            # Git ignore rules
-├── server.js             # Main application entry point
-└── package.json          # Dependencies and scripts
+│   ├── auth.js
+│   ├── transactions.js
+│   ├── insights.js
+│   ├── health.js
+│   └── README.md
+├── .env.example
+├── .gitignore
+├── server.js              # Entry point
+├── package.json
+└── README.md
 ```
 
-## ⚙️ Installation
+## Features
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Configure environment variables:**
-   
-   Create/edit `.env` file:
-   ```env
-   MONGODB_URI=mongodb://localhost:27017/expense-tracker
-   PORT=5000
-   NODE_ENV=development
-   ```
-
-3. **Ensure MongoDB is running:**
-   - Local: Start MongoDB service
-   - Cloud: Use MongoDB Atlas connection string
-
-## 🏃 Running the Server
-
-**Development mode (with auto-restart):**
-```bash
-npm run dev
-```
-
-**Production mode:**
-```bash
-npm start
-```
-
-## 🔍 API Endpoints
-
-### Health Check
-- **GET** `/api/health`
-- Returns server status and uptime
-- **Response:**
-  ```json
-  {
-    "status": "OK",
-    "message": "Server is running smoothly",
-    "uptime": 123.456,
-    "timestamp": "2026-01-30T05:00:00.000Z",
-    "environment": "development",
-    "mongodb": "connected"
-  }
-  ```
-
-### Root
-- **GET** `/`
-- Returns API information and available endpoints
-
-## ✅ What's Complete
-
-- ✅ Express server setup
-- ✅ MongoDB connection with Mongoose
-- ✅ Environment variable configuration
-- ✅ CORS enabled
-- ✅ JSON parsing middleware
-- ✅ Health check endpoint
+- ✅ JWT-based authentication
+- ✅ Password hashing with bcrypt
+- ✅ MongoDB integration with Mongoose
+- ✅ Input validation
 - ✅ Error handling middleware
-- ✅ Clean folder structure
-- ✅ Development tools (nodemon)
+- ✅ CORS configuration
+- ✅ Health check endpoint
+- ✅ Transaction CRUD operations
+- ✅ Financial insights & analytics
 
-## 🔜 Next Steps
+## Deployment
 
-- Add transaction models (models/)
-- Add transaction controllers (controllers/)
-- Add transaction routes (routes/)
-- Implement authentication
-- Add validation middleware
-- Add logging
+Deployed on Render: https://expense-tracker-backend-e2yj.onrender.com
 
-## 📝 Notes
+See main [DEPLOYMENT.md](../DEPLOYMENT.md) for details.
 
-- No authentication implemented yet (as per requirements)
-- No business logic yet (clean foundation only)
-- Ready for expansion with models, controllers, and routes
+## License
+
+MIT
