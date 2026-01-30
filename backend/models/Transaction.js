@@ -37,6 +37,7 @@ const transactionSchema = new mongoose.Schema({
                 'Freelance',
                 'Investment',
                 'Gift',
+                'Business',
                 'Other'
             ],
             message: '{VALUE} is not a valid category'
