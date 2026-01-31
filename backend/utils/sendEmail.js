@@ -1,59 +1,61 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-    try {
-        // Validate required environment variables
-        if (!process.env.SMTP_HOST || !process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
-            console.error('❌ SMTP configuration missing in environment variables');
-            throw new Error('Email service is not configured');
-        }
+    // 1. Validate Environment Variables
+    const requiredVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
+    const missingVars = requiredVars.filter(key => !process.env[key]);
 
-        // Create a transporter with Gmail-specific configuration
+    if (missingVars.length > 0) {
+        console.error(`❌ CRITICAL: Missing email configuration: ${missingVars.join(', ')}`);
+        // We throw here because this is a server configuration error, not a runtime email failure
+        throw new Error('Email server configuration is missing');
+    }
+
+    try {
+        // 2. Create Transporter with Gmail Optimization
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: parseInt(process.env.SMTP_PORT) || 587,
-            secure: false, // Use STARTTLS
+            secure: false, // true for 465, false for other ports
             auth: {
                 user: process.env.SMTP_EMAIL,
                 pass: process.env.SMTP_PASSWORD,
             },
-            // Gmail-specific options
+            // Gmail & Production specific settings
             tls: {
-                rejectUnauthorized: false, // Allow self-signed certificates
+                rejectUnauthorized: false, // Helps with self-signed certs in some container environments
                 ciphers: 'SSLv3'
             },
-            // Timeout settings
+            // Timeouts to prevent hanging requests
             connectionTimeout: 10000, // 10 seconds
             greetingTimeout: 10000,
-            socketTimeout: 10000,
+            socketTimeout: 15000,
         });
 
-        // Verify transporter configuration
-        await transporter.verify();
-        console.log('✅ SMTP server is ready to send emails');
-
-        // Define email options
+        // 3. Define Email Options
         const message = {
-            from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
+            from: `${process.env.FROM_NAME || 'Expense Tracker'} <${process.env.FROM_EMAIL || process.env.SMTP_EMAIL}>`,
             to: options.email,
             subject: options.subject,
             text: options.message,
-            html: options.html || undefined, // HTML version (optional)
+            html: options.html,
         };
 
-        // Send email
+        // 4. Send Email
+        console.log(`📧 Attempting to send email to: ${options.email}`);
         const info = await transporter.sendMail(message);
 
-        console.log('✅ Email sent successfully to:', options.email);
-        console.log('✅ Message ID:', info.messageId);
+        console.log(`✅ Email sent successfully. Message ID: ${info.messageId}`);
+        return true;
 
-        return info;
     } catch (error) {
-        console.error('❌ Email sending failed:', error.message);
-        console.error('❌ Full error:', error);
+        console.error('❌ SEND_EMAIL_FAILURE:');
+        console.error(`   - Reason: ${error.message}`);
+        console.error(`   - Code: ${error.code}`);
+        console.error(`   - Command: ${error.command}`);
 
-        // Re-throw the error so the calling function can handle it
-        throw new Error(`Failed to send email: ${error.message}`);
+        // Do NOT throw. Return false so controller can handle "success but no email" scenario.
+        return false;
     }
 };
 

@@ -174,174 +174,101 @@ const getMe = async (req, res) => {
 // @route   POST /api/auth/forgot-password
 // @access  Public
 const forgotPassword = async (req, res) => {
+    // 1. Log Entry
+    console.log('📝 ForgotPassword Request Initiated');
+    const { email } = req.body;
+
+    if (!email) {
+        console.log('⚠️ ForgotPassword: No email provided');
+        return res.status(400).json({
+            success: false,
+            message: 'Please provide an email address'
+        });
+    }
+
     try {
-        const { email } = req.body;
-
-        if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide an email address'
-            });
-        }
-
+        // 2. User Lookup
+        console.log(`🔍 Looking up user: ${email}`);
         const user = await User.findOne({ email });
 
         if (!user) {
+            console.log('❌ ForgotPassword: User not found');
             return res.status(404).json({
                 success: false,
                 message: 'No user found with that email'
             });
         }
+        console.log('✅ User found. Generating reset code...');
 
-        // Generate a 6-digit random code
+        // 3. OTP Generation & Save (BEFORE Email)
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Set reset code and expiration (10 minutes)
         user.resetPasswordCode = resetCode;
-        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
         await user.save();
+        console.log('✅ Reset code saved to database.');
 
-        // Professional HTML email template
+        // 4. Prepare Email Content
         const htmlMessage = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password Reset</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-    <table role="presentation" style="width: 100%; border-collapse: collapse;">
-        <tr>
-            <td align="center" style="padding: 40px 20px;">
-                <table role="presentation" style="width: 100%; max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    
-                    <!-- Header -->
-                    <tr>
-                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e5e5;">
-                            <h1 style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 0.1em; color: #1a1a1a;">
-                                <span style="color: #6b8e7f;">C</span>HEC<span style="color: #6b8e7f;">K</span>
-                            </h1>
-                        </td>
-                    </tr>
-                    
-                    <!-- Content -->
-                    <tr>
-                        <td style="padding: 40px;">
-                            <h2 style="margin: 0 0 16px; font-size: 24px; font-weight: 600; color: #1a1a1a;">
-                                Password Reset Request
-                            </h2>
-                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.5; color: #666666;">
-                                We received a request to reset your password. Use the verification code below to create a new password:
-                            </p>
-                            
-                            <!-- Code Box -->
-                            <table role="presentation" style="width: 100%; margin: 32px 0;">
-                                <tr>
-                                    <td align="center" style="background-color: #f8f8f8; padding: 24px; border-radius: 8px; border: 2px dashed #6b8e7f;">
-                                        <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1a1a1a; font-family: 'Courier New', monospace;">
-                                            ${resetCode}
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                            
-                            <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: #666666;">
-                                <strong style="color: #1a1a1a;">⏱ This code expires in 10 minutes.</strong>
-                            </p>
-                            
-                            <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.5; color: #666666;">
-                                If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
-                            </p>
-                            
-                            <!-- Divider -->
-                            <div style="border-top: 1px solid #e5e5e5; margin: 32px 0;"></div>
-                            
-                            <!-- Security Notice -->
-                            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #999999;">
-                                <strong style="color: #666666;">🔒 Security Tip:</strong> Never share this code with anyone. CHECK will never ask for your verification code via email, phone, or text message.
-                            </p>
-                        </td>
-                    </tr>
-                    
-                    <!-- Footer -->
-                    <tr>
-                        <td style="padding: 24px 40px; background-color: #f8f8f8; border-radius: 0 0 12px 12px; text-align: center;">
-                            <p style="margin: 0 0 8px; font-size: 12px; color: #999999;">
-                                This email was sent from CHECK Expense Tracker
-                            </p>
-                            <p style="margin: 0; font-size: 12px; color: #999999;">
-                                © ${new Date().getFullYear()} CHECK. All rights reserved.
-                            </p>
-                        </td>
-                    </tr>
-                    
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>
-        `.trim();
+            <!DOCTYPE html>
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                    <h2 style="color: #2c3e50; text-align: center;">Password Reset Request</h2>
+                    <p>You requested to reset your password for your <strong>CHECK Expense Tracker</strong> account.</p>
+                    <div style="background: #f4f6f7; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+                        <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2c3e50;">${resetCode}</span>
+                    </div>
+                    <p style="text-align: center; color: #7f8c8d; font-size: 14px;">This code expires in 10 minutes.</p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="font-size: 12px; color: #95a5a6;">If you didn't request a password reset, please ignore this email.</p>
+                </div>
+            </body>
+            </html>
+        `;
 
-        // Plain text fallback
-        const plainTextMessage = `
-Password Reset Request
+        const plainTextMessage = `Your password reset code is: ${resetCode}. It expires in 10 minutes.`;
 
-We received a request to reset your password for your CHECK account.
+        // 5. Attempt Email Send (SIDE EFFECT)
+        console.log('📨 Calling sendEmail utility...');
+        const emailSent = await sendEmail({
+            email: user.email,
+            subject: '🔐 Password Reset Code - CHECK',
+            message: plainTextMessage,
+            html: htmlMessage
+        });
 
-Your verification code is: ${resetCode}
-
-This code will expire in 10 minutes.
-
-If you didn't request a password reset, you can safely ignore this email.
-
-Security Tip: Never share this code with anyone. CHECK will never ask for your verification code via email, phone, or text message.
-
----
-This email was sent from CHECK Expense Tracker
-© ${new Date().getFullYear()} CHECK. All rights reserved.
-        `.trim();
-
-        try {
-            await sendEmail({
-                email: user.email,
-                subject: '🔐 Password Reset Code - CHECK',
-                message: plainTextMessage,
-                html: htmlMessage
-            });
-
-            res.status(200).json({
+        // 6. Deterministic Response
+        if (emailSent) {
+            console.log('🚀 ForgotPassword Success: Email sent.');
+            return res.status(200).json({
                 success: true,
                 message: 'Reset code sent to email'
             });
-        } catch (emailError) {
-            console.error('❌ Email could not be sent. Reset code:', resetCode);
+        } else {
+            console.warn('⚠️ ForgotPassword Warning: Valid user, Code saved, but Email failed.');
 
-            // For development, if email fails, we might still want to proceed or at least log the code
+            // In Production: We inform the user there's a delay/issue but don't crash
+            // In Development: We return the code for debugging
+            const responsePayload = {
+                success: false, // Client should treat as "action needed" or "try again"
+                message: 'Unable to send email. Please try again later or contact support.'
+            };
+
             if (process.env.NODE_ENV === 'development') {
-                return res.status(200).json({
-                    success: true,
-                    message: 'Reset code generated (Check server console since email sending failed)',
-                    developmentCode: resetCode // ONLY FOR DEV
-                });
+                responsePayload.message = 'Email failed (Check Logs). Here is your code for dev purposes.';
+                responsePayload.developmentCode = resetCode;
+                responsePayload.success = true; // Allow dev flow to continue
             }
 
-            user.resetPasswordCode = undefined;
-            user.resetPasswordExpire = undefined;
-            await user.save();
-
-            return res.status(500).json({
-                success: false,
-                message: 'Email could not be sent'
-            });
+            return res.status(200).json(responsePayload);
         }
+
     } catch (error) {
-        console.error('❌ Forgot Password Error:', error);
+        console.error('🔥 CRITICAL CONTROLLER ERROR:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error during forgot password'
+            message: 'Internal server error processing request'
         });
     }
 };
