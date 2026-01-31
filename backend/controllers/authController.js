@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const sendEmail = require('../utils/sendEmail');
+const { sendEmail, verifySmtpConnection, validateSmtpConfig } = require('../utils/sendEmail');
 const crypto = require('crypto');
 const { validatePasswordStrength } = require('../utils/passwordValidator');
 
@@ -174,41 +174,71 @@ const getMe = async (req, res) => {
 // @route   POST /api/auth/forgot-password
 // @access  Public
 const forgotPassword = async (req, res) => {
-    // 1. Log Entry
-    console.log('📝 ForgotPassword Request Initiated');
+    // 1. Controller Start
+    console.log('[FORGOT_PASSWORD] CONTROLLER_START | Request received');
     const { email } = req.body;
 
+    // 2. Validate Input
     if (!email) {
-        console.log('⚠️ ForgotPassword: No email provided');
+        console.log('[FORGOT_PASSWORD] VALIDATION_ERROR | No email provided');
         return res.status(400).json({
             success: false,
+            error: "VALIDATION_ERROR",
             message: 'Please provide an email address'
         });
     }
 
+    // 3. SMTP Config Validation (Fail Fast)
+    const configCheck = validateSmtpConfig();
+    if (!configCheck.valid) {
+        console.error(`[FORGOT_PASSWORD] SMTP_CONFIG_MISSING | Missing: ${configCheck.missing.join(', ')}`);
+        return res.status(500).json({
+            success: false,
+            error: "SMTP_CONFIG_MISSING",
+            message: 'Server email configuration is invalid'
+        });
+    }
+
     try {
-        // 2. User Lookup
-        console.log(`🔍 Looking up user: ${email}`);
+        // 4. User Lookup
+        const maskedEmail = email.replace(/(^.{2}).*(@.*$)/, '$1*****$2');
+        console.log(`[FORGOT_PASSWORD] EMAIL_RECEIVED | Processing for: ${maskedEmail}`);
+
         const user = await User.findOne({ email });
 
         if (!user) {
-            console.log('❌ ForgotPassword: User not found');
+            console.log('[FORGOT_PASSWORD] USER_NOT_FOUND | No account with this email');
             return res.status(404).json({
                 success: false,
-                message: 'No user found with that email'
+                error: "USER_NOT_FOUND",
+                message: 'No account found with this email'
             });
         }
-        console.log('✅ User found. Generating reset code...');
+        console.log('[FORGOT_PASSWORD] USER_FOUND | User exists, proceeding to verification');
 
-        // 3. OTP Generation & Save (BEFORE Email)
+        // 5. Verify SMTP Connection (Hard Requirement)
+        console.log('[FORGOT_PASSWORD] SMTP_VERIFY_START | Verifying connection to Gmail...');
+        const verifyResult = await verifySmtpConnection();
+
+        if (!verifyResult.success) {
+            console.error(`[FORGOT_PASSWORD] SMTP_VERIFY_FAILED | Code: ${verifyResult.error.code}, Msg: ${verifyResult.error.message}`);
+            return res.status(503).json({
+                success: false,
+                error: "EMAIL_DELIVERY_FAILED",
+                message: "Unable to connect to email provider. Please try again later."
+            });
+        }
+        console.log('[FORGOT_PASSWORD] SMTP_VERIFY_SUCCESS | Connection verified');
+
+        // 6. OTP Generation & Save (BEFORE Email)
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetPasswordCode = resetCode;
         user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
         await user.save();
-        console.log('✅ Reset code saved to database.');
+        console.log('[FORGOT_PASSWORD] OTP_GENERATED | OTP saved to DB');
 
-        // 4. Prepare Email Content
+        // 7. Prepare Email Content
         const htmlMessage = `
             <!DOCTYPE html>
             <html>
@@ -229,45 +259,44 @@ const forgotPassword = async (req, res) => {
 
         const plainTextMessage = `Your password reset code is: ${resetCode}. It expires in 10 minutes.`;
 
-        // 5. Attempt Email Send (SIDE EFFECT)
-        console.log('📨 Calling sendEmail utility...');
-        const emailSent = await sendEmail({
+        // 8. Attempt Email Send (Hard Fail)
+        console.log('[FORGOT_PASSWORD] EMAIL_SEND_START | Attempting to send email');
+        const sendResult = await sendEmail({
             email: user.email,
             subject: '🔐 Password Reset Code - CHECK',
             message: plainTextMessage,
             html: htmlMessage
         });
 
-        // 6. Deterministic Response
-        if (emailSent) {
-            console.log('🚀 ForgotPassword Success: Email sent.');
+        if (sendResult.success) {
+            console.log(`[FORGOT_PASSWORD] EMAIL_SEND_SUCCESS | MessageID: ${sendResult.messageId}`);
+            console.log('[FORGOT_PASSWORD] RESPONSE_SENT | 200 OK');
             return res.status(200).json({
                 success: true,
-                message: 'Reset code sent to email'
+                message: 'Reset code sent to your email'
             });
         } else {
-            console.warn('⚠️ ForgotPassword Warning: Valid user, Code saved, but Email failed.');
+            console.error(`[FORGOT_PASSWORD] EMAIL_SEND_FAILED | Code: ${sendResult.error.code}, Msg: ${sendResult.error.message}`);
 
-            // In Production: We inform the user there's a delay/issue but don't crash
-            // In Development: We return the code for debugging
-            const responsePayload = {
-                success: false, // Client should treat as "action needed" or "try again"
-                message: 'Unable to send email. Please try again later or contact support.'
-            };
+            // ROLLBACK: Clear OTP from DB
+            user.resetPasswordCode = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save();
+            console.log('[FORGOT_PASSWORD] ROLLBACK | OTP cleared from DB');
 
-            if (process.env.NODE_ENV === 'development') {
-                responsePayload.message = 'Email failed (Check Logs). Here is your code for dev purposes.';
-                responsePayload.developmentCode = resetCode;
-                responsePayload.success = true; // Allow dev flow to continue
-            }
-
-            return res.status(200).json(responsePayload);
+            console.log('[FORGOT_PASSWORD] RESPONSE_SENT | 503 Service Unavailable');
+            return res.status(503).json({
+                success: false,
+                error: "EMAIL_DELIVERY_FAILED",
+                message: "Unable to send email at the moment"
+            });
         }
 
     } catch (error) {
-        console.error('🔥 CRITICAL CONTROLLER ERROR:', error);
+        console.error('[FORGOT_PASSWORD] SYSTEM_ERROR | ', error);
         res.status(500).json({
             success: false,
+            error: "INTERNAL_SERVER_ERROR",
             message: 'Internal server error processing request'
         });
     }
