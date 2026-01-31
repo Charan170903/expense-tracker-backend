@@ -100,6 +100,13 @@ const Login = ({ theme, onToggleTheme }) => {
             {/* Right Form Panel */}
             <div className="login-form-panel">
                 <header className="panel-header">
+                    {/* Mobile branding - visible only on mobile */}
+                    <div className="mobile-branding">
+                        <h1 className="mobile-brand-name">
+                            <span className="accent">C</span>HEC<span className="accent">K</span>
+                        </h1>
+                    </div>
+
                     <button
                         className="theme-toggle-btn"
                         onClick={onToggleTheme}
