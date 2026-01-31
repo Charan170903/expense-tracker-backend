@@ -1,27 +1,8 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Helper to create transporter
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD,
-        },
-        tls: {
-            rejectUnauthorized: false, // Helps with self-signed certs in Render
-            ciphers: 'SSLv3'
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-    });
-};
-
-const validateSmtpConfig = () => {
-    const requiredVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
+// Validate Environment Configuration
+const validateEmailConfig = () => {
+    const requiredVars = ['RESEND_API_KEY', 'EMAIL_FROM'];
     const missingVars = requiredVars.filter(key => !process.env[key]);
 
     if (missingVars.length > 0) {
@@ -33,44 +14,55 @@ const validateSmtpConfig = () => {
     return { valid: true };
 };
 
-const verifySmtpConnection = async () => {
-    try {
-        const transporter = createTransporter();
-        await transporter.verify();
-        return { success: true };
-    } catch (error) {
+const sendEmail = async (options) => {
+    // Fail fast if config is missing (safety check)
+    const configCheck = validateEmailConfig();
+    if (!configCheck.valid) {
+        console.error(`[RESEND_ERROR] Configuration missing: ${configCheck.missing.join(', ')}`);
         return {
             success: false,
             error: {
-                code: error.code,
-                message: error.message
+                message: 'Server email configuration is missing',
+                code: 'CONFIG_MISSING'
             }
         };
     }
-};
 
-const sendEmail = async (options) => {
     try {
-        const transporter = createTransporter();
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const fromEmail = process.env.EMAIL_FROM;
 
-        const message = {
-            from: `${process.env.FROM_NAME || 'Expense Tracker'} <${process.env.FROM_EMAIL || process.env.SMTP_EMAIL}>`,
+        console.log(`[RESEND] Attempting to send email to: ${options.email}`);
+
+        const data = await resend.emails.send({
+            from: fromEmail,
             to: options.email,
             subject: options.subject,
-            text: options.message,
             html: options.html,
-        };
+            text: options.message, // Plain text fallback
+        });
 
-        const info = await transporter.sendMail(message);
-        return { success: true, messageId: info.messageId };
+        if (data.error) {
+            console.error('[RESEND_API_ERROR]', data.error);
+            return {
+                success: false,
+                error: {
+                    message: data.error.message,
+                    code: data.error.name || 'RESEND_API_ERROR'
+                }
+            };
+        }
+
+        console.log(`[RESEND] Email sent successfully. ID: ${data.data.id}`);
+        return { success: true, messageId: data.data.id };
 
     } catch (error) {
+        console.error('[RESEND_SYSTEM_ERROR]', error);
         return {
             success: false,
             error: {
-                code: error.code,
                 message: error.message,
-                command: error.command
+                code: 'SYSTEM_ERROR'
             }
         };
     }
@@ -78,6 +70,5 @@ const sendEmail = async (options) => {
 
 module.exports = {
     sendEmail,
-    verifySmtpConnection,
-    validateSmtpConfig
+    validateEmailConfig
 };

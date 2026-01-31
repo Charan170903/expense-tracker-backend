@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { sendEmail, verifySmtpConnection, validateSmtpConfig } = require('../utils/sendEmail');
+const { sendEmail, validateEmailConfig } = require('../utils/sendEmail');
 const crypto = require('crypto');
 const { validatePasswordStrength } = require('../utils/passwordValidator');
 
@@ -188,13 +188,13 @@ const forgotPassword = async (req, res) => {
         });
     }
 
-    // 3. SMTP Config Validation (Fail Fast)
-    const configCheck = validateSmtpConfig();
+    // 3. Email Config Validation (Fail Fast)
+    const configCheck = validateEmailConfig();
     if (!configCheck.valid) {
-        console.error(`[FORGOT_PASSWORD] SMTP_CONFIG_MISSING | Missing: ${configCheck.missing.join(', ')}`);
+        console.error(`[FORGOT_PASSWORD] CONFIG_MISSING | Missing: ${configCheck.missing.join(', ')}`);
         return res.status(500).json({
             success: false,
-            error: "SMTP_CONFIG_MISSING",
+            error: "EMAIL_CONFIG_MISSING",
             message: 'Server email configuration is invalid'
         });
     }
@@ -214,23 +214,9 @@ const forgotPassword = async (req, res) => {
                 message: 'No account found with this email'
             });
         }
-        console.log('[FORGOT_PASSWORD] USER_FOUND | User exists, proceeding to verification');
+        console.log('[FORGOT_PASSWORD] USER_FOUND | User exists, proceeding to OTP generation');
 
-        // 5. Verify SMTP Connection (Hard Requirement)
-        console.log('[FORGOT_PASSWORD] SMTP_VERIFY_START | Verifying connection to Gmail...');
-        const verifyResult = await verifySmtpConnection();
-
-        if (!verifyResult.success) {
-            console.error(`[FORGOT_PASSWORD] SMTP_VERIFY_FAILED | Code: ${verifyResult.error.code}, Msg: ${verifyResult.error.message}`);
-            return res.status(503).json({
-                success: false,
-                error: "EMAIL_DELIVERY_FAILED",
-                message: "Unable to connect to email provider. Please try again later."
-            });
-        }
-        console.log('[FORGOT_PASSWORD] SMTP_VERIFY_SUCCESS | Connection verified');
-
-        // 6. OTP Generation & Save (BEFORE Email)
+        // 5. OTP Generation & Save
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetPasswordCode = resetCode;
         user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -238,7 +224,7 @@ const forgotPassword = async (req, res) => {
         await user.save();
         console.log('[FORGOT_PASSWORD] OTP_GENERATED | OTP saved to DB');
 
-        // 7. Prepare Email Content
+        // 6. Prepare Email Content
         const htmlMessage = `
             <!DOCTYPE html>
             <html>
@@ -259,8 +245,8 @@ const forgotPassword = async (req, res) => {
 
         const plainTextMessage = `Your password reset code is: ${resetCode}. It expires in 10 minutes.`;
 
-        // 8. Attempt Email Send (Hard Fail)
-        console.log('[FORGOT_PASSWORD] EMAIL_SEND_START | Attempting to send email');
+        // 7. Attempt Email Send (Resend API)
+        console.log('[FORGOT_PASSWORD] EMAIL_SEND_START | Attempting to send email via Resend');
         const sendResult = await sendEmail({
             email: user.email,
             subject: '🔐 Password Reset Code - CHECK',
@@ -269,7 +255,7 @@ const forgotPassword = async (req, res) => {
         });
 
         if (sendResult.success) {
-            console.log(`[FORGOT_PASSWORD] EMAIL_SEND_SUCCESS | MessageID: ${sendResult.messageId}`);
+            console.log(`[FORGOT_PASSWORD] EMAIL_SEND_SUCCESS | Resend ID: ${sendResult.messageId}`);
             console.log('[FORGOT_PASSWORD] RESPONSE_SENT | 200 OK');
             return res.status(200).json({
                 success: true,
