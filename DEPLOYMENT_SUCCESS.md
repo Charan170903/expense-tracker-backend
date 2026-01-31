@@ -114,7 +114,7 @@
 
 ### Frontend (Vercel)
 ```env
-VITE_API_URL=https://expense-tracker-backend-e2yj.onrender.com/api
+VITE_API_BASE_URL=https://expense-tracker-backend-e2yj.onrender.com/api
 ```
 
 ### Backend (Render)
@@ -192,7 +192,7 @@ ALLOWED_ORIGINS=https://expense-tracker-indol-eight-74.vercel.app
 **Issue: Frontend shows "Cannot connect to server"**
 - Check if Render backend is awake (visit health endpoint)
 - Wait 30 seconds for cold start
-- Verify `VITE_API_URL` in Vercel settings
+- Verify `VITE_API_BASE_URL` in Vercel settings
 
 **Issue: CORS errors in console**
 - Verify `ALLOWED_ORIGINS` matches exact Vercel URL
