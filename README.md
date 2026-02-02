@@ -2,7 +2,8 @@
 
 ![Status](https://img.shields.io/badge/Status-Deployed-success?style=for-the-badge)
 ![Stack](https://img.shields.io/badge/Stack-MERN-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![CI/CD](https://img.shields.io/github/actions/workflow/status/Charan170903/expense-tracker/ci.yml?label=CI%20Pipeline&style=for-the-badge)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
 
 **CHECK** is a full-stack expense tracking application designed to help users understand and manage their personal finances with clarity. Built using the **MERN stack (MongoDB, Express, React, Node.js)**, it focuses on clean UX, intelligent financial insights, and secure authentication flows.
 
@@ -45,6 +46,14 @@
 * **Clean, Minimal Interface:** Professional, distraction-free layout.
 * **Fully Responsive:** Optimized for desktop, tablet, and mobile screens.
 * **Theme-ready Architecture:** Designed to support dark/light themes.
+
+### ⚙️ DevOps & System Reliability
+
+*   **Dockerized:** Containerized using Docker & Docker Compose for environment parity.
+*   **GitHub Actions CI:** Automated build verification, linting, and security auditing (npm audit).
+*   **Infrastructure as Code:** Service definitions managed via `render.yaml` and `vercel.json`.
+*   **Health Monitoring:** Integrated `/api/health` endpoint for proactive observability.
+*   **Detailed Documentation:** Full system architectural breakdown available in [SYSOPS.md](./SYSOPS.md).
 
 ---
 
@@ -103,6 +112,17 @@ cd ../expense-tracker
 npm install
 npm run dev
 ```
+---
+
+### 🐳 4️⃣ Docker Setup (Recommended)
+
+If you have Docker installed, you can spin up the entire environment with one command:
+
+```bash
+docker-compose up --build
+```
+
+The frontend will be available at `http://localhost:3000` and the backend at `http://localhost:5000`.
 
 ---
 
