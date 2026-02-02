@@ -1,4 +1,4 @@
-name: MERN CI Pipeline
+name: Backend CI Pipeline
 
 on:
   push:
@@ -30,31 +30,3 @@ jobs:
       - name: Security Scan (npm audit)
         working-directory: ./backend
         run: npm audit --audit-level=high
-
-  frontend-ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: expense-tracker/package-lock.json
-
-      - name: Install Frontend Dependencies
-        working-directory: ./expense-tracker
-        run: npm ci
-
-      - name: Security Scan (npm audit)
-        working-directory: ./expense-tracker
-        run: npm audit --audit-level=high
-
-      - name: Lint Frontend
-        working-directory: ./expense-tracker
-        run: npm run lint
-
-      - name: Build Frontend
-        working-directory: ./expense-tracker
-        run: npm run build
