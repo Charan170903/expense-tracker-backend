@@ -42,3 +42,6 @@ SESSION_SUMMARY_*.md
 DEPLOY_NOW.md
 DEPLOYMENT_CHECKLIST.md
 START_*.md
+
+# Separate repository - not a submodule
+expense-tracker/
