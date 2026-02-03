@@ -57,8 +57,7 @@ const corsOptions = {
     preflightContinue: false
 };
 
-// Handle preflight requests for all routes
-app.options('(.*)', cors(corsOptions));
+// CORS middleware - handles both preflight and regular requests
 app.use(cors(corsOptions));
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
