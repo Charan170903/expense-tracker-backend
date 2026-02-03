@@ -29,7 +29,7 @@ const corsOptions = {
         // Get allowed origins from environment or use defaults
         const allowedOrigins = process.env.ALLOWED_ORIGINS
             ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-            : ['http://localhost:5173', 'http://localhost:3000'];
+            : ['http://localhost:5173', 'http://localhost:3000', 'https://expense-tracker-indol-eight-74.vercel.app'];
 
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
