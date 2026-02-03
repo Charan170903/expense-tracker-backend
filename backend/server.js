@@ -58,7 +58,7 @@ const corsOptions = {
 };
 
 // Handle preflight requests for all routes
-app.options('*', cors(corsOptions));
+app.options('(.*)', cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
