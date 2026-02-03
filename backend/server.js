@@ -19,29 +19,47 @@ connectDB().then(() => {
     app.locals.mongoStatus = 'disconnected';
 });
 
-// Middleware
 // CORS Configuration
 const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
 
-        // Get allowed origins from environment or use defaults
-        const allowedOrigins = process.env.ALLOWED_ORIGINS
-            ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-            : ['http://localhost:5173', 'http://localhost:3000'];
+        // Define base allowed origins
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'https://expense-tracker-indol-eight-74.vercel.app'
+        ];
 
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        // Add origins from environment variables if present
+        if (process.env.ALLOWED_ORIGINS) {
+            const envOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+            allowedOrigins.push(...envOrigins);
+        }
+
+        // Exact match check
+        const isAllowed = allowedOrigins.includes(origin);
+
+        if (isAllowed) {
             callback(null, true);
         } else {
-            callback(new Error('Not allowed by CORS'));
+            // Log but don't throw - this prevents the 500 error
+            // Standard CORS behavior: browser blocks if origin isn't returned
+            console.warn(`CORS: Origin ${origin} not explicitly allowed. Use ALLOWED_ORIGINS to add it.`);
+            callback(null, false);
         }
     },
     credentials: true,
-    optionsSuccessStatus: 200
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    optionsSuccessStatus: 200,
+    preflightContinue: false
 };
 
-app.use(cors(corsOptions)); // Enable CORS with configuration
+// Handle preflight requests for all routes
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
