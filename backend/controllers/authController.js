@@ -18,14 +18,9 @@ const register = async (req, res) => {
             });
         }
 
-        // Check if user already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({
-                success: false,
-                message: 'User already exists with this email'
-            });
-        }
+        // Check if user already exists - REMOVED to prevent Time-Based Enumeration
+        // We rely on the database unique index (error 11000) to handle duplicates
+        // while returning a generic error message.
 
         // Validate password strength
         const passwordValidation = validatePasswordStrength(password);
@@ -71,7 +66,7 @@ const register = async (req, res) => {
         if (error.code === 11000) {
             return res.status(400).json({
                 success: false,
-                message: 'User already exists with this email'
+                message: 'Registration could not be completed. Please check your details.'
             });
         }
 
@@ -207,17 +202,23 @@ const forgotPassword = async (req, res) => {
         const user = await User.findOne({ email });
 
         if (!user) {
-            console.log('[FORGOT_PASSWORD] USER_NOT_FOUND | No account with this email');
-            return res.status(404).json({
-                success: false,
-                error: "USER_NOT_FOUND",
-                message: 'No account found with this email'
+            console.log('[FORGOT_PASSWORD] USER_NOT_FOUND | Mocking success response');
+
+            // SECURITY: Fake delay to lessen timing attacks (simulating external email API latency)
+            // Random delay between 500-1000ms
+            await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+
+            return res.status(200).json({
+                success: true,
+                message: 'If an account exists with this email, a reset code has been sent.'
             });
         }
         console.log('[FORGOT_PASSWORD] USER_FOUND | User exists, proceeding to OTP generation');
 
         // 5. OTP Generation & Save
-        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        // SECURITY: Using crypto.randomInt instead of Math.random() for cryptographic strength
+        // Generates an integer n such that 100000 <= n < 1000000 (always 6 digits)
+        const resetCode = crypto.randomInt(100000, 1000000).toString();
         user.resetPasswordCode = resetCode;
         user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -259,7 +260,7 @@ const forgotPassword = async (req, res) => {
             console.log('[FORGOT_PASSWORD] RESPONSE_SENT | 200 OK');
             return res.status(200).json({
                 success: true,
-                message: 'Reset code sent to your email'
+                message: 'If an account exists with this email, a reset code has been sent.'
             });
         } else {
             console.error(`[FORGOT_PASSWORD] EMAIL_SEND_FAILED | Code: ${sendResult.error.code}, Msg: ${sendResult.error.message}`);
